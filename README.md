@@ -18,6 +18,10 @@ just open --no-launch .
 
 ```shell
 pnpm add -g dsh-open-dir
+# 或者 {
+just pack
+pnpm add -g (realpath dsh-open-dir*.tgz)
+# }
 dsh-open .
 ```
 

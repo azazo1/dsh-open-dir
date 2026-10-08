@@ -1,0 +1,72 @@
+{
+  "name": "dsh-open-dir",
+  "version": "0.1.0",
+  "description": "通过 dsh-open CLI 在 DSH Desktop 或 Web 中打开指定目录对应的工作区.",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "bin": {
+    "dsh-open": "lib/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "dsh-plugin.naming.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build:host": "node scripts/build.mjs host",
+    "build:client": "node scripts/build.mjs client",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "pnpm typecheck && pnpm build && pnpm test",
+    "pack:preview": "pnpm pack --dry-run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-api-workspace-controller": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-client-connection": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-client-ui-workspace": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-home-paths": ">=0.2.0-rc.2 <0.3.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-api-workspace-controller": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-attachment": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-client-connection": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-client-ui-workspace": ">=0.2.0-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-home-paths": ">=0.2.0-rc.2 <0.3.0",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -10,7 +10,7 @@ install:
 typecheck:
     pnpm typecheck
 
-# 构建 Host 和独立 CLI.
+# 构建 Host 和类型声明.
 build-host:
     pnpm build:host
 
@@ -18,11 +18,20 @@ build-host:
 build-client:
     pnpm build:client
 
-# 构建全部产物.
+# 构建插件全部产物, 不含 Go CLI.
 build:
     pnpm build
 
-# 测试关键请求流程, 先构建当前产物.
+# 产物可复制到 PATH 中的任意目录, 之后与本仓库无关.
+# 构建 Go CLI 到 .tmp/bin/dsh-open.
+build-cli:
+    pnpm build:cli
+
+# 运行 Go CLI 的 vet 和单元测试.
+test-cli:
+    pnpm test:cli
+
+# 测试关键请求流程, 先构建插件产物, Go CLI 由 pnpm test 构建.
 test: build
     pnpm test
 
@@ -32,9 +41,9 @@ verify:
     pnpm pack --dry-run
 
 # just open . 或 just open --target web --no-launch .
-# 从仓库运行 CLI, 不修改全局 PATH.
-open *args:
-    node lib/cli.js {{args}}
+# 从仓库构建并运行 Go CLI, 不修改全局 PATH.
+open *args: build-cli
+    {{ justfile_directory() / ".tmp" / "bin" / "dsh-open" }}{{ if os_family() == "windows" { ".exe" } else { "" } }} {{args}}
 
 # 生成可安装的插件压缩包.
 pack: build

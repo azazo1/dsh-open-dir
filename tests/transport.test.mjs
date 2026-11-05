@@ -2,18 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { realpath, writeFile, readdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { log, sandbox, source } from './helpers.mjs'
+import { cliBinary, log, sandbox, source } from './helpers.mjs'
 
 const { Broker } = await source('src/host/broker.ts', await sandbox('http-broker'))
 const { startBridge } = await source('src/host/bridge.ts', await sandbox('http-bridge'))
-const { discover } = await source('src/cli/discovery.ts', await sandbox('discovery'))
-const { parseArgs, canonicalDirectory } = await source('src/cli/args.ts', await sandbox('args'))
 
 function cli(args, home) {
-  const child = spawn(process.execPath, [resolve('lib/cli.js'), ...args], { env: { ...process.env, DSH_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(cliBinary, args, { env: { ...process.env, DSH_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''; let stderr = ''
   child.stdout.on('data', data => { stdout += data })
   child.stderr.on('data', data => { stderr += data })
@@ -57,36 +55,40 @@ test('实际 CLI 进程通过发现和 HTTP 提交, 只有 ACK 后才成功退�
   assert.ok(result.stdout.includes(delivery.path))
 })
 
-test('发现握手排除其他目标和伪造实例, 多实例保持显式选择', async t => {
-  const directory = await sandbox('multi')
+test('CLI 发现握手排除其他目标和伪造实例, 多实例需要 --instance 选择', async t => {
+  const home = await sandbox('multi-home')
+  const directory = join(home, 'runtime', 'dsh-open-dir')
   const one = new Broker(log)
   const two = new Broker(log)
   const first = await startBridge(one, directory, log)
   const second = await startBridge(two, directory, log)
   t.after(() => Promise.all([first.dispose(), second.dispose()]))
   const cancel = new AbortController()
-  one.poll('web', cancel.signal)
+  t.after(() => cancel.abort())
+  const delivered = one.poll('web', cancel.signal)
   two.poll('web', cancel.signal)
-  assert.equal((await discover(directory, 'desktop', undefined, cancel.signal, log)).length, 0)
-  assert.equal((await discover(directory, 'web', undefined, cancel.signal, log)).length, 2)
-  assert.equal((await discover(directory, 'web', first.endpoint.instance, cancel.signal, log))[0].instance, first.endpoint.instance)
   const fake = { ...first.endpoint, instance: randomUUID() }
   await writeFile(join(directory, `${fake.instance}.json`), JSON.stringify(fake), { mode: 0o600 })
-  assert.equal((await discover(directory, 'web', undefined, cancel.signal, log)).length, 2)
-  cancel.abort()
+
+  const desktop = await cli(['--target', 'desktop', '--no-launch', '--timeout', '1', '.'], home).result
+  assert.notEqual(desktop.code, 0)
+  const ambiguous = await cli(['--target', 'web', '--no-launch', '--timeout', '5', '.'], home).result
+  assert.notEqual(ambiguous.code, 0)
+  assert.ok(ambiguous.stderr.includes(first.endpoint.instance) && ambiguous.stderr.includes(second.endpoint.instance), ambiguous.stderr)
+  assert.ok(!ambiguous.stderr.includes(fake.instance), ambiguous.stderr)
+
+  const chosen = cli(['--target', 'web', '--no-launch', '--timeout', '5', '--instance', first.endpoint.instance, '.'], home)
+  t.after(() => { if (chosen.child.exitCode === null) chosen.child.kill() })
+  const delivery = await delivered
+  assert.equal(one.acknowledge({ id: delivery.id, lease: delivery.lease, result: { ok: true, workspaceId: 'workspace-one', path: delivery.path } }), true)
+  const result = await chosen.result
+  assert.equal(result.code, 0, result.stderr)
 })
 
-test('CLI 错误路径和未就绪界面非零退出, 参数边界得到验证', async () => {
+test('CLI 错误路径和未就绪界面非零退出', async () => {
   const home = await sandbox('no-host')
   const invalid = await cli(['--no-launch', join(home, 'absent')], home).result
   assert.notEqual(invalid.code, 0)
   const timeout = await cli(['--no-launch', '--timeout', '1', '.'], home).result
   assert.notEqual(timeout.code, 0)
-  assert.equal(parseArgs(['--', '-directory']).path, '-directory')
-  assert.throws(() => parseArgs(['--timeout', 'NaN']))
-  assert.throws(() => parseArgs(['--target', 'other']))
-  assert.throws(() => parseArgs(['one', 'two']))
-  const file = join(home, 'file.txt')
-  await writeFile(file, 'data')
-  await assert.rejects(() => canonicalDirectory(file))
 })

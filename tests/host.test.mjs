@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import * as plugin from '../lib/index.js'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { readFile, readdir } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
-import { sandbox, deferred } from './helpers.mjs'
+import { sandbox, deferred, cliBinary } from './helpers.mjs'
 
 test('真实 Cordis 挂载 Host 和 Client 产物, CLI 等待导航后退出, 卸载撤回接口', { timeout: 10_000 }, async t => {
   const home = await sandbox('composition-home')
@@ -46,7 +46,7 @@ test('真实 Cordis 挂载 Host 和 Client 产物, CLI 等待导航后退出, �
   const client = ctx.plugin(registration.factory(() => { throw new Error('未声明的模块依赖') }))
   await client.await()
   t.after(() => { allowOpen.resolve(); return client.dispose() })
-  const child = spawn(process.execPath, [resolve('lib/cli.js'), '--target', 'web', '--no-launch', '--timeout', '5', '.'], {
+  const child = spawn(cliBinary, ['--target', 'web', '--no-launch', '--timeout', '5', '.'], {
     env: { ...process.env, DSH_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'],
   })
   t.after(() => { if (child.exitCode === null) child.kill() })

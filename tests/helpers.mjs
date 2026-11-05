@@ -4,6 +4,8 @@ import { join, resolve } from 'node:path'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 
 export const log = { debug() {}, info() {}, warn() {}, error() {} }
+/** pnpm build:cli 产出的 Go CLI 二进制. */
+export const cliBinary = resolve('.tmp/bin', process.platform === 'win32' ? 'dsh-open.exe' : 'dsh-open')
 export async function sandbox(name) {
   const root = resolve('.tmp/tests')
   await mkdir(root, { recursive: true })

@@ -1,7 +1,7 @@
 {
   "name": "dsh-open-dir",
   "version": "0.1.0",
-  "description": "通过 dsh-open CLI 在 DSH Desktop 或 Web 中打开指定目录对应的工作区.",
+  "description": "配合独立的 dsh-open CLI, 在 DSH Desktop 或 Web 中打开指定目录对应的工作区.",
   "type": "module",
   "license": "MIT",
   "packageManager": "pnpm@12.3.4",
@@ -10,9 +10,6 @@
   },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "bin": {
-    "dsh-open": "lib/cli.js"
-  },
   "exports": {
     ".": {
       "types": "./lib/types/index.d.ts",
@@ -33,8 +30,10 @@
     "build:host": "node scripts/build.mjs host",
     "build:client": "node scripts/build.mjs client",
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "check": "pnpm typecheck && pnpm build && pnpm test",
+    "build:cli": "node scripts/build.mjs cli",
+    "test": "pnpm build:cli && node --test tests/*.test.mjs",
+    "test:cli": "go -C cli vet ./... && go -C cli test ./...",
+    "check": "pnpm typecheck && pnpm build && pnpm test:cli && pnpm test",
     "pack:preview": "pnpm pack --dry-run"
   },
   "dsh": {
